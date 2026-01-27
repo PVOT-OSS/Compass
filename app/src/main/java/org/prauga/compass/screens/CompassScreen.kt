@@ -7,12 +7,11 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -28,8 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.prauga.compass.components.CompassDial
 import org.prauga.compass.viewmodel.CompassViewModel
 
@@ -39,6 +40,9 @@ fun CompassScreen(viewModel: CompassViewModel) {
     val heading by viewModel.heading.collectAsState()
     val cumulativeHeading by viewModel.cumulativeHeading.collectAsState()
     val altitude by viewModel.altitude.collectAsState()
+    val latitude by viewModel.latitude.collectAsState()
+    val longitude by viewModel.longitude.collectAsState()
+    val placeName by viewModel.placeName.collectAsState()
     val animatedHeading by animateFloatAsState(
         targetValue = cumulativeHeading,
         animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
@@ -72,44 +76,75 @@ fun CompassScreen(viewModel: CompassViewModel) {
         onDispose { viewModel.stop() }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black),
-        contentAlignment = Alignment.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.weight(1f))
+
         CompassDial(
             heading = animatedHeading,
             modifier = Modifier.size(340.dp)
         )
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "${heading.toInt()}° ${direction(heading)}",
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-            if (locationGranted) {
-                val altText =
-                    altitude?.let { "${it.toInt()} m above sea level" } ?: "Acquiring altitude…"
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "${heading.toInt()}° ${direction(heading)}",
+            color = Color.White,
+            fontSize = 42.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        if (locationGranted) {
+            // Coordinates in DMS
+            val lat = latitude
+            val lng = longitude
+            if (lat != null && lng != null) {
                 Text(
-                    text = altText,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "${toDms(lat, "N", "S")} ${toDms(lng, "E", "W")}",
                     color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 18.sp,
                     textAlign = TextAlign.Center
                 )
             }
+            // Place name
+            placeName?.let {
+                Text(
+                    text = it,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+            // Sea level
+            val altText =
+                altitude?.let { "${it.toInt()}m Elevation" } ?: "Acquiring altitude…"
+            Text(
+                text = altText,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center
+            )
         }
+
+        Spacer(modifier = Modifier.weight(1f))
     }
 }
 
 private fun direction(deg: Float): String {
     val dirs = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
     return dirs[((deg + 22.5f) / 45f).toInt() % 8]
+}
+
+private fun toDms(decimal: Double, positive: String, negative: String): String {
+    val dir = if (decimal >= 0) positive else negative
+    val abs = kotlin.math.abs(decimal)
+    val degrees = abs.toInt()
+    val minutesFull = (abs - degrees) * 60
+    val minutes = minutesFull.toInt()
+    val seconds = ((minutesFull - minutes) * 60).toInt()
+    return "$degrees°$minutes'$seconds\"$dir"
 }

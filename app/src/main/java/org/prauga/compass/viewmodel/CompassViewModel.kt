@@ -6,16 +6,21 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.Geocoder
 import android.os.Looper
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 class CompassViewModel(
     context: Context
@@ -41,12 +46,44 @@ class CompassViewModel(
     private val _altitude = MutableStateFlow<Double?>(null)
     val altitude: StateFlow<Double?> = _altitude
 
+    private val _latitude = MutableStateFlow<Double?>(null)
+    val latitude: StateFlow<Double?> = _latitude
+
+    private val _longitude = MutableStateFlow<Double?>(null)
+    val longitude: StateFlow<Double?> = _longitude
+
+    private val _placeName = MutableStateFlow<String?>(null)
+    val placeName: StateFlow<String?> = _placeName
+
+    private val geocoder = Geocoder(context, Locale.getDefault())
+
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { location ->
+                _latitude.value = location.latitude
+                _longitude.value = location.longitude
                 if (location.hasAltitude()) {
                     _altitude.value = location.altitude
                 }
+                reverseGeocode(location.latitude, location.longitude)
+            }
+        }
+    }
+
+    private fun reverseGeocode(lat: Double, lng: Double) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(lat, lng, 1)
+                if (!addresses.isNullOrEmpty()) {
+                    val addr = addresses[0]
+                    val parts = listOfNotNull(addr.locality, addr.adminArea)
+                    if (parts.isNotEmpty()) {
+                        _placeName.value = parts.joinToString(", ")
+                    }
+                }
+            } catch (_: Exception) {
+                // Geocoding unavailable
             }
         }
     }

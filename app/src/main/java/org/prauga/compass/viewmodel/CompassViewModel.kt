@@ -22,6 +22,10 @@ class CompassViewModel(
     private val _heading = MutableStateFlow(0f)
     val heading: StateFlow<Float> = _heading
 
+    private var _cumulative = 0f
+    private val _cumulativeHeading = MutableStateFlow(0f)
+    val cumulativeHeading: StateFlow<Float> = _cumulativeHeading
+
     fun start() {
         sensorManager.registerListener(
             this,
@@ -44,7 +48,15 @@ class CompassViewModel(
         val azimuthRad = orientationAngles[0]
         val azimuthDeg = (Math.toDegrees(azimuthRad.toDouble()) + 360) % 360
 
-        _heading.value = azimuthDeg.toFloat()
+        val newHeading = azimuthDeg.toFloat()
+        _heading.value = newHeading
+
+        val current = ((_cumulative % 360f) + 360f) % 360f
+        var delta = newHeading - current
+        if (delta > 180f) delta -= 360f
+        if (delta < -180f) delta += 360f
+        _cumulative += delta
+        _cumulativeHeading.value = _cumulative
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

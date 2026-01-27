@@ -15,9 +15,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import org.prauga.compass.components.CompassDial
 import org.prauga.compass.viewmodel.CompassViewModel
@@ -31,6 +36,17 @@ fun CompassScreen(viewModel: CompassViewModel) {
         targetValue = cumulativeHeading,
         animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
     )
+
+    // Haptic feedback
+    val haptic = LocalHapticFeedback.current
+    val currentSlot = (heading / 30f).toInt()
+    var lastSlot by remember { mutableIntStateOf(currentSlot) }
+    LaunchedEffect(currentSlot) {
+        if (currentSlot != lastSlot) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            lastSlot = currentSlot
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.start() }
     DisposableEffect(Unit) {

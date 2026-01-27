@@ -1,11 +1,19 @@
 package org.prauga.compass.viewmodel
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Looper
 import androidx.lifecycle.ViewModel
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -26,6 +34,23 @@ class CompassViewModel(
     private val _cumulativeHeading = MutableStateFlow(0f)
     val cumulativeHeading: StateFlow<Float> = _cumulativeHeading
 
+    // Altitude
+    private val fusedLocationClient: FusedLocationProviderClient =
+        LocationServices.getFusedLocationProviderClient(context)
+
+    private val _altitude = MutableStateFlow<Double?>(null)
+    val altitude: StateFlow<Double?> = _altitude
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { location ->
+                if (location.hasAltitude()) {
+                    _altitude.value = location.altitude
+                }
+            }
+        }
+    }
+
     fun start() {
         sensorManager.registerListener(
             this,
@@ -34,8 +59,20 @@ class CompassViewModel(
         )
     }
 
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates() {
+        val locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY, 5000L
+        ).setMinUpdateIntervalMillis(2000L).build()
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest, locationCallback, Looper.getMainLooper()
+        )
+    }
+
     fun stop() {
         sensorManager.unregisterListener(this)
+        fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
     override fun onSensorChanged(event: SensorEvent) {

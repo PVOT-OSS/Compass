@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val versionMajor: Int by rootProject.extra
+val versionMinor: Int by rootProject.extra
+val versionPatch: Int by rootProject.extra
+val computedVersionCode: Int by rootProject.extra
+val computedVersionName: String by rootProject.extra
+
 android {
     namespace = "org.prauga.compass"
     compileSdk {
@@ -14,8 +20,12 @@ android {
         applicationId = "org.prauga.compass"
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = computedVersionCode
+        versionName = computedVersionName
+
+        buildConfigField("int", "VERSION_MAJOR", "$versionMajor")
+        buildConfigField("int", "VERSION_MINOR", "$versionMinor")
+        buildConfigField("int", "VERSION_PATCH", "$versionPatch")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,6 +48,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
